@@ -1,0 +1,5 @@
+{
+  "name": "imageto.org - Private Browser Image Converter",
+  "description": "A fully browser-based image converter and compressor that works entirely on your local device. Privacy-first, zero-cost, and fast image processing without uploading files to any server.",
+  "requestFramePermissions": []
+}
