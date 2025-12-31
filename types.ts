@@ -1,15 +1,11 @@
 
-export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf' | 'image/svg+xml' | 'image/heic';
+export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 
 export interface ImageProcessOptions {
   format: ImageFormat;
   quality: number;
   width?: number;
   height?: number;
-  removeBackground?: boolean;
-  removeWatermark?: boolean;
-  cropAspect?: string;
-  vectorize?: boolean;
 }
 
 export interface ProcessedImage {
@@ -34,8 +30,6 @@ export interface ToolMetadata {
   description: string;
   defaultFormat: ImageFormat;
   slug: string;
-  features?: string[];
-  initialOptions?: Partial<ImageProcessOptions>;
 }
 
 export interface FAQItem {

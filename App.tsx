@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import Header from './components/Header.tsx';
-import Footer from './components/Footer.tsx';
-import Home from './pages/Home.tsx';
-import ToolPage from './pages/ToolPage.tsx';
-import About from './pages/About.tsx';
-import Privacy from './pages/Privacy.tsx';
-import Blog from './pages/Blog.tsx';
-import BlogPost from './pages/BlogPost.tsx';
-import { TOOLS } from './constants.tsx';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import ToolPage from './pages/ToolPage';
+import About from './pages/About';
+import Privacy from './pages/Privacy';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import { TOOLS } from './constants';
 
 const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {

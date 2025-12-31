@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BLOG_POSTS } from '../constants.tsx';
-import AdPlaceholder from '../components/AdPlaceholder.tsx';
+import { BLOG_POSTS } from '../constants';
+import AdPlaceholder from '../components/AdPlaceholder';
 
 const BlogPost: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -19,7 +19,6 @@ const BlogPost: React.FC = () => {
     window.scrollTo(0, 0);
     document.title = `${post.title} | imageto.org Blog`;
 
-    // Dynamic SEO Rich Snippets
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.id = `ld-article-${post.slug}`;
@@ -35,8 +34,7 @@ const BlogPost: React.FC = () => {
           "name": "imageto.org Editorial Team",
           "url": "https://imageto.org/#/about"
       }],
-      "description": post.metaDescription,
-      "keywords": (post as any).keywords?.join(', ') || ""
+      "description": post.metaDescription
     });
     document.head.appendChild(script);
 
@@ -53,26 +51,6 @@ const BlogPost: React.FC = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Helper to parse internal links in content
-  const renderParagraph = (text: string) => {
-    const parts = text.split(/(\[.*?\]\(.*?\))/g);
-    return (
-      <p className="mb-8 leading-relaxed">
-        {parts.map((part, i) => {
-          const match = part.match(/\[(.*?)\]\((.*?)\)/);
-          if (match) {
-            return (
-              <Link key={i} to={match[2]} className="text-blue-600 dark:text-blue-400 font-bold underline hover:text-blue-800 transition-colors">
-                {match[1]}
-              </Link>
-            );
-          }
-          return part;
-        })}
-      </p>
-    );
   };
 
   if (!post) return null;
@@ -121,26 +99,28 @@ const BlogPost: React.FC = () => {
                </div>
              </div>
 
-             <div className="text-slate-600 dark:text-slate-300 font-semibold text-xl leading-relaxed">
-               {/* Key Takeaway box for better SEO dwell time */}
-               <div className="bg-slate-50 dark:bg-slate-900 border-l-4 border-blue-600 p-8 rounded-r-3xl mb-12 not-prose shadow-sm">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2 block">Key Takeaway</span>
-                 <p className="text-lg font-black dark:text-white leading-tight">
-                    In 2025, data privacy and web performance are the two most critical factors for any digital professional. Process locally to secure your assets and optimize for search.
-                 </p>
+             <div className="space-y-8 text-slate-600 dark:text-slate-300 font-semibold text-xl leading-relaxed">
+               <p className="text-3xl font-black text-slate-900 dark:text-white leading-[1.2] tracking-tight">
+                 Understanding the intersection of pixel-perfect rendering and end-to-end user privacy.
+               </p>
+               
+               <p>
+                 When we talk about image conversion in 2025, we are no longer just talking about changing a file extension. We are talking about data integrity, mobile bandwidth optimization, and the ethical responsibility of tools to protect user data.
+               </p>
+
+               {/* MID-ARTICLE AD: Box between paragraphs */}
+               <div className="my-12 flex justify-center">
+                 <AdPlaceholder type="box" label="Sponsor Content" />
                </div>
 
-               {/* Render real article content from constants */}
-               {(post as any).content?.map((p: string, i: number) => (
-                 <React.Fragment key={i}>
-                   {renderParagraph(p)}
-                   {i === 1 && (
-                      <div className="my-12 flex justify-center">
-                        <AdPlaceholder type="box" label="Sponsor Content" />
-                      </div>
-                   )}
-                 </React.Fragment>
-               ))}
+               <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">The Technical Frontier</h2>
+               <p>
+                 Traditional "cloud" converters are expensive to maintain and risky for the user. Every time you upload a photo to a remote server, you create a permanent digital footprint. At imageto.org, we solve this using <strong>WebAssembly</strong> and <strong>Canvas GPU rendering</strong>.
+               </p>
+               
+               <p>
+                 By shifting the heavy lifting from our servers to your browser's V8 engine, we achieve sub-millisecond conversion speeds that remain completely isolated from the open web.
+               </p>
 
                <div className="bg-blue-600 rounded-[2.5rem] p-12 text-white not-prose my-16 shadow-2xl shadow-blue-500/20">
                  <h3 className="text-3xl font-black mb-6 tracking-tight">Ready to optimize?</h3>
@@ -149,6 +129,10 @@ const BlogPost: React.FC = () => {
                    Open Pipeline
                  </Link>
                </div>
+
+               <p>
+                 In conclusion, the future of media tools is local. Whether you are optimizing for SEO, reducing mobile data costs, or stripping sensitive EXIF data, doing it locally is the only way to ensure absolute security.
+               </p>
              </div>
           </div>
         </div>
