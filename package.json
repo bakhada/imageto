@@ -10,8 +10,7 @@
     "react-router-dom": "7.1.1",
     "jszip": "^3.10.1",
     "jspdf": "^2.5.2",
-    "heic2any": "^0.0.4",
-    "potrace-js": "^1.0.3"
+    "heic2any": "^0.0.4"
   },
   "devDependencies": {
     "@types/react": "19.0.0",

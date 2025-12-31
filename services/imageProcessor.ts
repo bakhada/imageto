@@ -28,7 +28,7 @@ export const processImage = async (
     try {
       // Dynamic import to keep main bundle light
       const { default: heic2any } = await import('heic2any');
-      const converted = await heic2any({ 
+      const converted = await (heic2any as any)({ 
         blob: file, 
         toType: 'image/jpeg', 
         quality: 0.85 
@@ -150,24 +150,31 @@ export const processImage = async (
   }
 
   if (options.format === 'image/svg+xml') {
-    const PotraceMod = await import('potrace-js');
-    // Normalize constructor for different module patterns
-    const PotraceConstructor = PotraceMod.default || PotraceMod.Potrace || PotraceMod;
-    
-    return new Promise((resolve) => {
-      try {
-        const potrace = new PotraceConstructor();
-        potrace.loadImage(canvas.toDataURL('image/png'), (err: any) => {
-          if (err) throw err;
-          const svgContent = potrace.getSVG();
-          resolve(createProcessedItem(new Blob([svgContent], { type: 'image/svg+xml' }), fileNameNoExt + '.svg', 'image/svg+xml', targetWidth, targetHeight, file.size));
-        });
-      } catch (e) {
-        console.warn("Vector engine failed, using wrapper", e);
-        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${targetWidth}" height="${targetHeight}"><image href="${canvas.toDataURL('image/png')}" width="100%" height="100%"/></svg>`;
-        resolve(createProcessedItem(new Blob([fallbackSvg], { type: 'image/svg+xml' }), fileNameNoExt + '.svg', 'image/svg+xml', targetWidth, targetHeight, file.size));
-      }
-    });
+    try {
+      // Switched to imagetracerjs for professional, stable browser vectorization
+      const ImageTracerMod = await import('imagetracerjs');
+      const ImageTracer = ImageTracerMod.default || ImageTracerMod;
+      
+      const svgString = ImageTracer.imageToSVG(canvas.toDataURL('image/png'), {
+        ltres: 1,
+        qtres: 1,
+        pathomit: 8,
+        strokewidth: 0.5,
+        numberofcolors: 128
+      });
+      
+      return createProcessedItem(
+        new Blob([svgString], { type: 'image/svg+xml' }), 
+        fileNameNoExt + '.svg', 
+        'image/svg+xml', 
+        targetWidth, 
+        targetHeight, 
+        file.size
+      );
+    } catch (e) {
+      console.warn("Vector module engine loading failed, using raster-wrapped SVG fallback", e);
+      return generateSvgFallback(canvas, targetWidth, targetHeight, fileNameNoExt, file.size);
+    }
   }
 
   const outputBlob = await new Promise<Blob>((resolve, reject) => {
@@ -176,6 +183,11 @@ export const processImage = async (
 
   const finalExt = options.format.split('/')[1].replace('jpeg', 'jpg');
   return createProcessedItem(outputBlob, fileNameNoExt + '.' + finalExt, options.format, targetWidth, targetHeight, file.size);
+};
+
+const generateSvgFallback = (canvas: HTMLCanvasElement, w: number, h: number, name: string, oldSize: number): ProcessedImage => {
+  const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><image href="${canvas.toDataURL('image/png')}" width="100%" height="100%"/></svg>`;
+  return createProcessedItem(new Blob([fallbackSvg], { type: 'image/svg+xml' }), name + '.svg', 'image/svg+xml', w, h, oldSize);
 };
 
 const createProcessedItem = (blob: Blob, name: string, format: string, w: number, h: number, oldSize: number): ProcessedImage => ({
