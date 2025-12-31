@@ -110,7 +110,10 @@ const ToolPage: React.FC<ToolPageProps> = ({ tool }) => {
             The fastest and most secure way to manage your {tool.title.toLowerCase()} workflow. No servers. No limits. Just performance.
           </p>
 
-          <Converter defaultFormat={tool.defaultFormat} />
+          <Converter 
+            defaultFormat={tool.defaultFormat} 
+            initialOptions={tool.initialOptions} 
+          />
         </section>
 
         {/* MID-SECTION AD: Large box between tool and SEO content */}
