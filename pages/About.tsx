@@ -19,39 +19,39 @@ const About: React.FC = () => {
           </div>
           <h2 className="text-3xl font-black mb-6 tracking-tight text-white">Our Local-First Mission</h2>
           <p className="text-lg opacity-90 leading-relaxed font-semibold">
-            At imageto.org, we are on a mission to decentralize media processing. In a world where every "free" service is a data harvesting trap, we offer a high-performance alternative that respects your hardware and your privacy. Our tools run exclusively on your machine, using your CPU and GPU to perform complex transformations without ever "calling home."
+            In an era where "free" web services often act as data harvesting funnels, imageto.org provides a high-performance, expert-grade alternative. We believe that professional image manipulation shouldn't require surrendering your data sovereignty. Our platform is a technical proof-of-concept for a more secure, decentralized web.
           </p>
         </section>
 
         <section>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-8 tracking-tight">The Technical Vanguard</h2>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-8 tracking-tight">The Professional Standards</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-8 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-sm">
               <h3 className="text-lg font-black text-indigo-600 mb-4 uppercase tracking-widest">WebAssembly (Wasm)</h3>
-              <p className="text-sm font-bold leading-relaxed">By compiling high-performance C++ and Rust codecs into WebAssembly, we bring desktop-speed image processing to the browser. This allows us to handle heavy 4K photography with near-zero latency.</p>
+              <p className="text-sm font-bold leading-relaxed">We compile native C++ and Rust media codecs into WebAssembly modules. This allows us to provide desktop-class performance for heavy 4K photography and complex HEIC decoding without ever leaving the browser's secure sandbox.</p>
             </div>
             <div className="p-8 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-sm">
-              <h3 className="text-lg font-black text-indigo-600 mb-4 uppercase tracking-widest">Privacy Engineering</h3>
-              <p className="text-sm font-bold leading-relaxed">Our "Zero-Knowledge" architecture ensures that even we, the creators, cannot see your files. This is not a policy; it is a technical reality of how our code is structured and executed.</p>
+              <h3 className="text-lg font-black text-indigo-600 mb-4 uppercase tracking-widest">Zero-Trust Ethics</h3>
+              <p className="text-sm font-bold leading-relaxed">Our architecture is built on the principle of minimal data exposure. We don't just "promise" not to see your images; we have engineered the system so that it is technically impossible for us to access your local file buffers.</p>
             </div>
           </div>
         </section>
 
         <section className="space-y-6">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase text-xs tracking-[0.3em] text-indigo-600">Monetization Transparency</h2>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase text-xs tracking-[0.3em] text-indigo-600">Monetization & Transparency</h2>
           <p className="font-bold">
-            Google AdSense is our primary partner for keeping imageto.org 100% free for everyone. By hosting high-quality, relevant advertisements, we cover our hosting, CDN, and continuous development costs without ever selling user data. We strictly follow Google's Advertising Policies to ensure a clean, safe, and professional browsing environment.
+            imageto.org is a free-to-use utility supported by high-quality advertising via Google AdSense. This model allows us to fund the continuous research and development of local-first media codecs while keeping the tool accessible to everyone. We strictly adhere to the Google Publisher Policies to ensure our users receive only safe, relevant, and professional advertising content.
           </p>
         </section>
 
         <div className="pt-20 border-t border-slate-200 dark:border-slate-800 text-center">
-          <h3 className="text-2xl font-black dark:text-white mb-8 leading-none">Have a Question?</h3>
+          <h3 className="text-2xl font-black dark:text-white mb-8 leading-none">Connect with the Team</h3>
           <div className="flex flex-col md:flex-row gap-4 justify-center">
             <Link to="/contact" className="px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 transition-all">
-              Contact Support
+              Direct Support
             </Link>
             <Link to="/blog" className="px-10 py-5 border border-slate-200 dark:border-slate-800 dark:text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-100 dark:hover:bg-slate-900 transition-all">
-              Expert Blog
+              Technical Blog
             </Link>
           </div>
         </div>
