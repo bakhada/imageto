@@ -7,15 +7,19 @@ import Home from './pages/Home.tsx';
 import ToolPage from './pages/ToolPage.tsx';
 import About from './pages/About.tsx';
 import Privacy from './pages/Privacy.tsx';
+import Terms from './pages/Terms.tsx';
+import Contact from './pages/Contact.tsx';
 import Blog from './pages/Blog.tsx';
 import BlogPost from './pages/BlogPost.tsx';
+import CookieConsent from './components/CookieConsent.tsx';
 import { TOOLS } from './constants.tsx';
 
 const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
-        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return false;
   });
@@ -49,12 +53,15 @@ const App: React.FC = () => {
             ))}
             <Route path="/about" element={<About />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
           </Routes>
         </main>
 
         <Footer />
+        <CookieConsent />
       </div>
     </Router>
   );

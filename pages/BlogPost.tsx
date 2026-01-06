@@ -10,6 +10,7 @@ const BlogPost: React.FC = () => {
   const post = BLOG_POSTS.find(p => p.slug === slug);
   const relatedPosts = BLOG_POSTS.filter(p => p.slug !== slug).slice(0, 3);
   const [copied, setCopied] = useState(false);
+  const [readProgress, setReadProgress] = useState(0);
 
   useEffect(() => {
     if (!post) {
@@ -17,9 +18,17 @@ const BlogPost: React.FC = () => {
       return;
     }
     window.scrollTo(0, 0);
-    document.title = `${post.title} | imageto.org Blog`;
+    document.title = `${post.title} | Knowledge Base | imageto.org`;
 
-    // Dynamic SEO Rich Snippets
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = (window.scrollY / scrollHeight) * 100;
+      setReadProgress(progress);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    // Dynamic SEO Rich Snippets (Schema.org)
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.id = `ld-article-${post.slug}`;
@@ -28,15 +37,23 @@ const BlogPost: React.FC = () => {
       "@type": "BlogPosting",
       "headline": post.title,
       "image": [post.image],
-      "datePublished": "2025-02-24T08:00:00+08:00",
-      "dateModified": "2025-02-24T09:20:00+08:00",
+      "datePublished": "2025-02-25T08:00:00+00:00",
       "author": [{
-          "@type": "Organization",
-          "name": "imageto.org Editorial Team",
+          "@type": "Person",
+          "name": post.author.name,
+          "jobTitle": post.author.role,
           "url": "https://imageto.org/#/about"
       }],
+      "publisher": {
+        "@type": "Organization",
+        "name": "imageto.org",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://imageto.org/logo.png"
+        }
+      },
       "description": post.metaDescription,
-      "keywords": (post as any).keywords?.join(', ') || ""
+      "keywords": post.keywords.join(', ')
     });
     document.head.appendChild(script);
 
@@ -46,6 +63,7 @@ const BlogPost: React.FC = () => {
     return () => {
       const el = document.getElementById(`ld-article-${post.slug}`);
       if (el) document.head.removeChild(el);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, [post, navigate, slug]);
 
@@ -55,16 +73,46 @@ const BlogPost: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Helper to parse internal links in content
-  const renderParagraph = (text: string) => {
+  const getTableOfContents = () => {
+    if (!post) return [];
+    return post.content
+      .filter(text => text.startsWith('## ') || text.startsWith('### '))
+      .map(text => {
+        const isH3 = text.startsWith('### ');
+        const title = text.replace(isH3 ? '### ' : '## ', '').trim();
+        return { title, isH3 };
+      });
+  };
+
+  const renderContent = (text: string) => {
+    if (text.startsWith('## ')) {
+      const title = text.replace('## ', '').trim();
+      const id = title.toLowerCase().replace(/\s+/g, '-');
+      return (
+        <h2 id={id} className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mt-20 mb-8 tracking-tighter leading-tight border-b border-slate-100 dark:border-slate-800 pb-4 scroll-mt-24">
+          {title}
+        </h2>
+      );
+    }
+    
+    if (text.startsWith('###')) {
+      const title = text.replace('###', '').trim();
+      const id = title.toLowerCase().replace(/\s+/g, '-');
+      return (
+        <h3 id={id} className="text-xl md:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-12 mb-6 tracking-tight uppercase text-xs tracking-[0.3em] scroll-mt-24">
+          {title}
+        </h3>
+      );
+    }
+    
     const parts = text.split(/(\[.*?\]\(.*?\))/g);
     return (
-      <p className="mb-8 leading-relaxed">
+      <p className="mb-8 leading-relaxed text-lg md:text-xl text-slate-600 dark:text-slate-300 font-medium">
         {parts.map((part, i) => {
           const match = part.match(/\[(.*?)\]\((.*?)\)/);
           if (match) {
             return (
-              <Link key={i} to={match[2]} className="text-blue-600 dark:text-blue-400 font-bold underline hover:text-blue-800 transition-colors">
+              <Link key={i} to={match[2]} className="text-indigo-600 dark:text-indigo-400 font-black border-b-2 border-indigo-600/20 hover:border-indigo-600 transition-all">
                 {match[1]}
               </Link>
             );
@@ -77,99 +125,158 @@ const BlogPost: React.FC = () => {
 
   if (!post) return null;
 
+  const toc = getTableOfContents();
+
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6">
-      <Link to="/blog" className="inline-flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-12 hover:translate-x-[-4px] transition-transform">
-        <svg className="w-4 h-4 mr-3 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-        Feed Index
-      </Link>
+    <div className="relative">
+      <div className="fixed top-20 left-0 w-full h-1 z-[60] pointer-events-none bg-slate-100 dark:bg-slate-900">
+        <div 
+          className="h-full bg-indigo-600 transition-all duration-75" 
+          style={{ width: `${readProgress}%` }}
+        />
+      </div>
 
-      <article className="animate-entrance">
-        <header className="mb-12">
-          <div className="flex items-center space-x-3 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-            <span className="text-blue-600">{post.category}</span>
-            <span>•</span>
-            <span>{post.date}</span>
-          </div>
-          <h1 className="text-4xl md:text-7xl font-black text-slate-900 dark:text-white mb-10 leading-[1.05] tracking-tighter">
-            {post.title}
-          </h1>
-          <div className="relative rounded-[3rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
-            <img src={post.image} alt={post.title} className="w-full h-[300px] md:h-[500px] object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-          </div>
-        </header>
+      <div className="fixed bottom-10 right-10 z-[60] hidden md:block">
+        <button 
+          onClick={copyLink}
+          className="w-14 h-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-all group relative"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+          {copied && <span className="absolute bottom-full right-0 mb-4 bg-indigo-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-xl whitespace-nowrap shadow-xl">URL Copied!</span>}
+        </button>
+      </div>
 
-        {/* IN-ARTICLE AD: Leaderboard below header */}
-        <AdPlaceholder type="leaderboard" className="mb-12" />
-
+      <div className="max-w-6xl mx-auto py-12 px-6">
         <div className="flex flex-col lg:flex-row gap-16">
-          <div className="flex-grow prose prose-lg dark:prose-invert max-w-none">
-             <div className="flex items-center justify-between py-6 border-y border-slate-100 dark:border-slate-800/60 mb-12">
-               <div className="flex items-center space-x-4">
-                 <div className="w-12 h-12 rounded-2xl bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900 text-[10px] font-black">IT</div>
-                 <div className="flex flex-col">
-                   <span className="text-xs font-black dark:text-white uppercase tracking-wider leading-none mb-1">imageto.org Editorial</span>
-                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Privacy Engineering Group</span>
-                 </div>
-               </div>
-               <div className="flex items-center space-x-3">
-                 <button onClick={copyLink} className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900 text-slate-400 hover:text-blue-600 transition-all relative group">
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                   {copied && <span className="absolute -top-12 left-1/2 -translate-x-1/2 text-[10px] font-black bg-blue-600 text-white px-4 py-2 rounded-xl whitespace-nowrap">Link Copied!</span>}
-                 </button>
-               </div>
-             </div>
+          
+          <article className="lg:w-2/3 animate-entrance">
+            <header className="mb-16">
+              <nav aria-label="Breadcrumb" className="mb-12">
+                <ol className="flex items-center space-x-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <li><Link to="/blog" className="hover:text-indigo-600">Archive</Link></li>
+                  <li><span className="text-slate-200 dark:text-slate-800">/</span></li>
+                  <li><span className="text-indigo-600">{post.category}</span></li>
+                </ol>
+              </nav>
 
-             <div className="text-slate-600 dark:text-slate-300 font-semibold text-xl leading-relaxed">
-               {/* Key Takeaway box for better SEO dwell time */}
-               <div className="bg-slate-50 dark:bg-slate-900 border-l-4 border-blue-600 p-8 rounded-r-3xl mb-12 not-prose shadow-sm">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2 block">Key Takeaway</span>
-                 <p className="text-lg font-black dark:text-white leading-tight">
-                    In 2025, data privacy and web performance are the two most critical factors for any digital professional. Process locally to secure your assets and optimize for search.
-                 </p>
-               </div>
+              <h1 className="text-4xl md:text-7xl font-black text-slate-900 dark:text-white mb-10 leading-[1.05] tracking-tighter">
+                {post.title}
+              </h1>
 
-               {/* Render real article content from constants */}
-               {(post as any).content?.map((p: string, i: number) => (
-                 <React.Fragment key={i}>
-                   {renderParagraph(p)}
-                   {i === 1 && (
-                      <div className="my-12 flex justify-center">
-                        <AdPlaceholder type="box" label="Sponsor Content" />
-                      </div>
-                   )}
-                 </React.Fragment>
-               ))}
-
-               <div className="bg-blue-600 rounded-[2.5rem] p-12 text-white not-prose my-16 shadow-2xl shadow-blue-500/20">
-                 <h3 className="text-3xl font-black mb-6 tracking-tight">Ready to optimize?</h3>
-                 <p className="mb-10 text-xl font-bold opacity-80 leading-relaxed">Join the privacy-first revolution. Process your assets locally with our high-performance edge converters.</p>
-                 <Link to="/" className="bg-white text-blue-600 px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all inline-block shadow-lg">
-                   Open Pipeline
-                 </Link>
-               </div>
-             </div>
-          </div>
-        </div>
-      </article>
-
-      {/* AFTER-ARTICLE AD: Multiplex for maximum post-read revenue */}
-      <AdPlaceholder type="multiplex" label="Recommended Articles" />
-
-      {/* Recommended Section */}
-      <div className="mt-20 pt-20 border-t border-slate-100 dark:border-slate-800">
-        <h3 className="text-3xl font-black mb-12 dark:text-white tracking-tight">Continued Reading</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {relatedPosts.map(p => (
-            <Link key={p.slug} to={`/blog/${p.slug}`} className="group">
-              <div className="aspect-[16/10] rounded-[2rem] overflow-hidden mb-6 border border-slate-100 dark:border-slate-800">
-                <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+              <div className="flex items-center justify-between py-8 border-y border-slate-100 dark:border-slate-800 mb-10">
+                <div className="flex items-center space-x-4">
+                  <img src={post.author.avatar} alt={post.author.name} className="w-12 h-12 rounded-full ring-2 ring-indigo-600/20" />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black dark:text-white uppercase tracking-wider leading-none mb-1">{post.author.name}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{post.author.role}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                   <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{post.date}</span>
+                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{post.readTime}</span>
+                </div>
               </div>
-              <h4 className="font-black text-base leading-tight group-hover:text-blue-600 transition-colors dark:text-white tracking-tight">{p.title}</h4>
-            </Link>
-          ))}
+
+              {toc.length > 0 && (
+                <div className="mb-12 p-8 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-[2.5rem]">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">In this Guide</h4>
+                  <ul className="space-y-4">
+                    {toc.map((item, i) => (
+                      <li key={i} className={item.isH3 ? 'pl-6' : ''}>
+                        <a 
+                          href={`#${item.title.toLowerCase().replace(/\s+/g, '-')}`} 
+                          className={`text-sm font-bold transition-colors flex items-center group ${item.isH3 ? 'text-slate-500 hover:text-indigo-500' : 'text-slate-700 dark:text-slate-300 hover:text-indigo-600'}`}
+                        >
+                          <span className={`w-6 h-px bg-slate-200 dark:bg-slate-800 mr-3 group-hover:bg-indigo-600 transition-colors ${item.isH3 ? 'w-4' : ''}`}></span>
+                          {item.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="rounded-[3rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
+                <img src={post.image} alt={post.title} className="w-full h-[300px] md:h-[500px] object-cover" />
+              </div>
+            </header>
+
+            <div className="prose prose-lg dark:prose-invert max-w-none">
+              {post.content.map((p, i) => (
+                <React.Fragment key={i}>
+                  {renderContent(p)}
+                  {i === 3 && (
+                    <div className="my-16 flex justify-center">
+                      <AdPlaceholder type="leaderboard" label="Analysis Partner" />
+                    </div>
+                  )}
+                  {i === 7 && (
+                    <div className="my-16 flex justify-center">
+                      <AdPlaceholder type="multiplex" label="Contextual Exploration" />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <footer className="mt-20 pt-16 border-t border-slate-100 dark:border-slate-800">
+               <div className="bg-slate-50 dark:bg-slate-900/40 p-10 md:p-14 rounded-[3rem] border border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-col md:flex-row items-center gap-10">
+                     <img src={post.author.avatar} alt={post.author.name} className="w-32 h-32 rounded-[2rem] shadow-xl" />
+                     <div className="text-center md:text-left flex-grow">
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2 block">Written by</span>
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white mb-4 leading-none">{post.author.name}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                           {post.author.bio}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+            </footer>
+          </article>
+
+          <aside className="lg:w-1/3 space-y-16">
+             <div className="sticky top-28 space-y-12">
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8 border-b border-slate-50 dark:border-slate-800 pb-4">Keywords</h4>
+                   <div className="flex flex-wrap gap-2">
+                      {post.keywords.map(kw => (
+                        <span key={kw} className="px-4 py-2 bg-slate-50 dark:bg-slate-800 text-[9px] font-black uppercase tracking-widest text-slate-500 rounded-xl">#{kw}</span>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="flex justify-center">
+                   <AdPlaceholder type="skyscraper" label="Sponsored Content" />
+                </div>
+
+                <div className="bg-indigo-600 p-10 rounded-[2.5rem] text-white shadow-2xl shadow-indigo-600/20">
+                   <h4 className="text-2xl font-black mb-4 leading-tight">Privacy First.</h4>
+                   <p className="text-xs font-bold opacity-80 mb-8 leading-relaxed">Ready to convert your assets without cloud risks? Use our edge-processing tool suite for 100% data isolation.</p>
+                   <Link to="/" className="w-full bg-white text-indigo-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-center block shadow-lg hover:scale-[1.02] transition-transform">Launch Engine</Link>
+                </div>
+             </div>
+          </aside>
         </div>
+
+        <section className="mt-24 pt-20 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="text-4xl font-black mb-14 dark:text-white tracking-tight uppercase text-xs tracking-[0.3em] text-indigo-600">Continued Reading</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {relatedPosts.map(p => (
+              <Link key={p.slug} to={`/blog/${p.slug}`} className="group block">
+                <div className="aspect-[16/10] rounded-[2.5rem] overflow-hidden mb-8 border border-slate-100 dark:border-slate-800 shadow-sm transition-all group-hover:shadow-xl">
+                  <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                </div>
+                <h4 className="font-black text-xl leading-tight group-hover:text-indigo-600 transition-colors dark:text-white tracking-tight">{p.title}</h4>
+                <div className="flex items-center space-x-3 mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                   <span>{p.category}</span>
+                   <span>•</span>
+                   <span>{p.readTime}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

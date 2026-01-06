@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { TOOLS } from '../constants';
@@ -28,9 +29,9 @@ const Footer: React.FC = () => {
           </div>
 
           <div className="col-span-1 md:col-span-2">
-            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Codecs</h4>
+            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Tools</h4>
             <ul className="space-y-5 text-xs font-bold uppercase tracking-widest">
-              {TOOLS.slice(0, 3).map(tool => (
+              {TOOLS.map(tool => (
                 <li key={tool.id}>
                   <Link to={`/${tool.slug}`} className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">
                     {tool.title}
@@ -41,38 +42,27 @@ const Footer: React.FC = () => {
           </div>
 
           <div className="col-span-1 md:col-span-2">
-            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Pipelines</h4>
+            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Company</h4>
             <ul className="space-y-5 text-xs font-bold uppercase tracking-widest">
-              {TOOLS.slice(3).map(tool => (
-                <li key={tool.id}>
-                  <Link to={`/${tool.slug}`} className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">
-                    {tool.title}
-                  </Link>
-                </li>
-              ))}
+              <li><Link to="/about" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">About Us</Link></li>
+              <li><Link to="/contact" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Contact Us</Link></li>
+              <li><Link to="/blog" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Blog Feed</Link></li>
             </ul>
           </div>
 
-          <div className="col-span-1 md:col-span-2">
-            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Resources</h4>
-            <ul className="space-y-5 text-xs font-bold uppercase tracking-widest">
-              <li><Link to="/about" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Docs</Link></li>
-              <li><Link to="/privacy" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Legal</Link></li>
-              <li><Link to="/blog" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Feed</Link></li>
+          <div className="col-span-1 md:col-span-4">
+            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Legal</h4>
+            <ul className="space-y-5 text-xs font-bold uppercase tracking-widest mb-10">
+              <li><Link to="/privacy" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all">Terms of Service</Link></li>
             </ul>
-          </div>
-
-          <div className="col-span-1 md:col-span-2">
-            <h4 className="font-black text-slate-900 dark:text-white text-[10px] mb-10 uppercase tracking-[0.25em]">Sync</h4>
-            <ul className="space-y-5 text-xs font-bold uppercase tracking-widest text-slate-400">
-              <li className="opacity-40">Build 92.1</li>
-              <li className="opacity-40">Local-Only</li>
-              <li className="opacity-40">SSL Locked</li>
-            </ul>
+            <p className="text-[10px] font-bold text-slate-400 leading-loose">
+              imageto.org is a private media utility. We do not store, view, or transmit your images to any third party.
+            </p>
           </div>
         </div>
 
-        <div className="pt-12 border-t border-slate-200/40 dark:border-slate-800/40 flex flex-col md:flex-row justify-between items-center text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-600">
+        <div className="pt-12 flex flex-col md:flex-row justify-between items-center text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-600">
           <p>© {new Date().getFullYear()} imageto.org — All Nodes Processing Locally</p>
           <div className="mt-8 md:mt-0 flex space-x-10">
             <span className="cursor-default hover:text-blue-600 transition-colors">Privacy First</span>

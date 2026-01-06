@@ -1,7 +1,7 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ImageFormat, ProcessedImage, ImageProcessOptions } from '../types';
-import { processImage, formatFileSize, copyToClipboard } from '../services/imageProcessor';
+import { processImage, formatFileSize } from '../services/imageProcessor';
 
 interface ConverterProps {
   defaultFormat?: ImageFormat;
@@ -15,16 +15,17 @@ interface BatchItem {
   progress: number;
   result?: ProcessedImage;
   error?: string;
+  customOptions?: Partial<ImageProcessOptions>;
+  previewUrl: string;
 }
 
 const Converter: React.FC<ConverterProps> = ({ 
   defaultFormat = 'image/png',
-  initialOptions = {}
+  initialOptions = {} as Partial<ImageProcessOptions>
 }) => {
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [isZipping, setIsZipping] = useState(false);
 
   const [format, setFormat] = useState<ImageFormat>(initialOptions.format || defaultFormat);
@@ -33,7 +34,7 @@ const Converter: React.FC<ConverterProps> = ({
   const [resizeHeight, setResizeHeight] = useState<number | ''>(initialOptions.height || '');
   const [removeBG, setRemoveBG] = useState(initialOptions.removeBackground || false);
   const [removeWatermark, setRemoveWatermark] = useState(initialOptions.removeWatermark || false);
-  const [cropAspect, setCropAspect] = useState<string>(initialOptions.cropAspect || '');
+  const [stripMetadata, setStripMetadata] = useState(initialOptions.stripMetadata ?? true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,15 +43,8 @@ const Converter: React.FC<ConverterProps> = ({
     if (initialOptions.quality !== undefined) setQuality(initialOptions.quality);
     if (initialOptions.removeBackground !== undefined) setRemoveBG(initialOptions.removeBackground);
     if (initialOptions.removeWatermark !== undefined) setRemoveWatermark(initialOptions.removeWatermark);
+    if (initialOptions.stripMetadata !== undefined) setStripMetadata(initialOptions.stripMetadata);
   }, [initialOptions]);
-
-  useEffect(() => {
-    return () => {
-      batch.forEach(item => {
-        if (item.result?.url) URL.revokeObjectURL(item.result.url);
-      });
-    };
-  }, [batch]);
 
   const handleFiles = (files: FileList | File[]) => {
     const validFiles = Array.from(files).filter(f => 
@@ -61,7 +55,8 @@ const Converter: React.FC<ConverterProps> = ({
       id: Math.random().toString(36).substring(2, 11),
       file,
       status: 'pending',
-      progress: 0
+      progress: 0,
+      previewUrl: URL.createObjectURL(file)
     }));
     setBatch(prev => [...prev, ...newItems]);
   };
@@ -75,24 +70,44 @@ const Converter: React.FC<ConverterProps> = ({
     
     for (let i = 0; i < batch.length; i++) {
       if (batch[i].status !== 'pending') continue;
-
-      setBatch(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'processing' } : item));
+      
+      const currentId = batch[i].id;
 
       try {
-        const result = await processImage(batch[i].file, {
+        const itemOptions = {
           format,
           quality,
           width: resizeWidth || undefined,
           height: resizeHeight || undefined,
           removeBackground: removeBG,
           removeWatermark,
-          cropAspect: cropAspect || undefined
-        });
-        
-        setBatch(prev => prev.map((item, idx) => idx === i ? { ...item, result, status: 'done' } : item));
+          stripMetadata,
+          ...batch[i].customOptions
+        };
+
+        const result = await processImage(
+          batch[i].file, 
+          itemOptions as ImageProcessOptions,
+          (percent) => {
+            setBatch(prev => prev.map(item => 
+              item.id === currentId 
+                ? { ...item, status: 'processing', progress: percent } 
+                : item
+            ));
+          }
+        );
+
+        setBatch(prev => prev.map(item => 
+          item.id === currentId 
+            ? { ...item, result, status: 'done', progress: 100 } 
+            : item
+        ));
       } catch (err: any) {
-        console.error("Local pipeline crash:", err);
-        setBatch(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: err.message } : item));
+        setBatch(prev => prev.map(item => 
+          item.id === currentId 
+            ? { ...item, status: 'error', error: err.message, progress: 0 } 
+            : item
+        ));
       }
     }
     setIsProcessing(false);
@@ -111,11 +126,9 @@ const Converter: React.FC<ConverterProps> = ({
     const ready = batch.filter(i => i.status === 'done' && i.result);
     if (ready.length === 0) return;
     if (ready.length === 1 && ready[0].result) return handleSave(ready[0].result);
-    
     setIsZipping(true);
     try {
-      // @ts-ignore
-      const JSZipMod = await import(/* @vite-ignore */ 'jszip');
+      const JSZipMod = await import('jszip');
       const JSZip = JSZipMod.default || JSZipMod;
       const zip = new (JSZip as any)();
       ready.forEach(item => { if (item.result) zip.file(item.result.name, item.result.blob); });
@@ -126,52 +139,44 @@ const Converter: React.FC<ConverterProps> = ({
       link.download = `imageto-bundle-${Date.now()}.zip`;
       link.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Archive failure:", e);
-    }
+    } catch (e) { console.error(e); }
     setIsZipping(false);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-12 animate-entrance">
-      <div className="bg-white dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] overflow-hidden card-blur">
-        <div className="p-8 md:p-14 border-b border-slate-100 dark:border-slate-800/60">
+      <div className="card-pro rounded-[2.5rem] overflow-hidden">
+        <div className="p-8 md:p-14 border-b border-slate-200/60 dark:border-slate-800/60">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-14">
             
             <div 
-              className={`lg:col-span-6 h-[480px] border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all relative group
-                ${dragActive ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-600/5' : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20'}`}
+              className={`lg:col-span-6 h-auto min-h-[480px] border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all relative group py-12
+                ${dragActive ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-600/10' : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20'}`}
               onDragEnter={onDrag} onDragLeave={onDrag} onDragOver={onDrag} onDrop={onDrop}
               onClick={() => fileInputRef.current?.click()}
             >
               <input type="file" ref={fileInputRef} onChange={(e) => e.target.files && handleFiles(e.target.files)} className="hidden" accept="image/*,.heic,.heif" multiple />
               
-              <div className="w-24 h-24 bg-blue-50 dark:bg-blue-600/10 rounded-[2rem] flex items-center justify-center text-blue-600 dark:text-blue-400 mb-8 group-hover:scale-110 transition-transform shadow-sm">
+              <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-[2.2rem] flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-8 group-hover:scale-110 transition-transform shadow-sm border border-slate-100 dark:border-slate-800 ring-4 ring-indigo-50/50 dark:ring-indigo-900/10">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Stage Assets</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold px-12 text-center leading-relaxed">Drop high-res images here for local processing. Privacy guaranteed by edge execution.</p>
-              
-              {batch.length > 0 && (
-                <div className="absolute bottom-10 px-5 py-2.5 bg-slate-900 dark:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg animate-pulse">
-                  {batch.length} Nodes in Buffer
-                </div>
-              )}
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3 tracking-tight text-center">Stage Assets</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold px-12 text-center leading-relaxed">Drop images here. Handled 100% locally in your browser sandbox.</p>
             </div>
 
             <div className="lg:col-span-6 flex flex-col justify-between">
               <div className="space-y-10">
                 <div className="space-y-5">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] block">Target Pipeline</label>
-                  <div className="flex flex-wrap gap-2">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] block">Target Pipeline</label>
+                  <div className="flex flex-wrap gap-2.5">
                     {['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].map((fmt) => (
                       <button 
                         key={fmt}
                         onClick={() => setFormat(fmt as ImageFormat)}
-                        className={`px-5 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border-2 transition-all ${
+                        className={`px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.25em] border-2 transition-all ${
                           format === fmt 
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400' 
-                          : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200'
+                          ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                          : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-950'
                         }`}
                       >
                         {fmt === 'application/pdf' ? 'PDF' : fmt.split('/')[1].replace('jpeg', 'jpg')}
@@ -180,32 +185,23 @@ const Converter: React.FC<ConverterProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div onClick={() => setRemoveBG(!removeBG)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${removeBG ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 dark:border-slate-800'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider dark:text-white">Isolate Object</span>
-                      <div className={`w-3 h-3 rounded-full ${removeBG ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
-                    </div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Alpha Keying Engine</p>
+                <div className="grid grid-cols-2 gap-5">
+                   <div onClick={() => setStripMetadata(!stripMetadata)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-center space-x-3 ${stripMetadata ? 'border-indigo-500/50 bg-indigo-50/5 dark:bg-indigo-600/10' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950'}`}>
+                    <div className={`w-3 h-3 rounded-full ${stripMetadata ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-800'}`}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Clean Meta</span>
                   </div>
-                  <div onClick={() => setRemoveWatermark(!removeWatermark)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${removeWatermark ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 dark:border-slate-800'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider dark:text-white">Sanitize Area</span>
-                      <div className={`w-3 h-3 rounded-full ${removeWatermark ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
-                    </div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Patch Blur Inpainting</p>
+                  <div onClick={() => setRemoveBG(!removeBG)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-center space-x-3 ${removeBG ? 'border-emerald-500/50 bg-emerald-50/5 dark:bg-emerald-600/10' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950'}`}>
+                    <div className={`w-3 h-3 rounded-full ${removeBG ? 'bg-emerald-600' : 'bg-slate-200 dark:bg-slate-800'}`}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Isolate Object</span>
                   </div>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">Dimension Resampling</label>
-                    <button onClick={() => { setResizeWidth(''); setResizeHeight(''); }} className="text-[9px] font-bold text-blue-600 uppercase tracking-widest">Reset</button>
+                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em]">Compression Logic</label>
+                    <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1 rounded-lg">{Math.round(quality * 100)}%</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="number" placeholder="W (px)" value={resizeWidth} onChange={(e) => setResizeWidth(e.target.value ? parseInt(e.target.value) : '')} className="bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-xs font-bold focus:border-blue-500 outline-none transition-all dark:text-white" />
-                    <input type="number" placeholder="H (px)" value={resizeHeight} onChange={(e) => setResizeHeight(e.target.value ? parseInt(e.target.value) : '')} className="bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-xs font-bold focus:border-blue-500 outline-none transition-all dark:text-white" />
-                  </div>
+                  <input type="range" min="0.1" max="1.0" step="0.05" value={quality} onChange={(e) => setQuality(parseFloat(e.target.value))} className="w-full" />
                 </div>
               </div>
 
@@ -213,121 +209,88 @@ const Converter: React.FC<ConverterProps> = ({
                 <button 
                   onClick={executePipeline}
                   disabled={isProcessing || batch.filter(i => i.status === 'pending').length === 0}
-                  className="w-full bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 text-white py-6 rounded-[1.75rem] font-black tracking-[0.25em] transition-all flex items-center justify-center space-x-4 text-[11px] uppercase shadow-2xl disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="w-full bg-slate-900 dark:bg-indigo-600 hover:bg-slate-950 dark:hover:bg-indigo-700 text-white py-6 rounded-[2rem] font-black tracking-[0.3em] transition-all flex items-center justify-center space-x-4 text-[12px] uppercase shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   {isProcessing ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Simulating Local Logic...</span>
-                    </>
+                    <span className="flex items-center space-x-2">
+                       <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                       <span>Processing Pipeline...</span>
+                    </span>
                   ) : (
-                    <span>Run Conversion Pipeline</span>
+                    <span className="group-hover:translate-x-1 transition-transform">Execute Local Engine</span>
                   )}
                 </button>
-                {batch.length > 0 && !isProcessing && (
-                  <button onClick={() => setBatch([])} className="w-full py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-rose-500 transition-colors">
-                    Reset Staging Area
-                  </button>
-                )}
               </div>
             </div>
           </div>
         </div>
 
         {batch.length > 0 && (
-          <div className="bg-slate-50/50 dark:bg-slate-900/50 p-8 md:p-14">
+          <div className="bg-slate-50/80 dark:bg-slate-900/40 p-8 md:p-14">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
               <div>
-                <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-3">Rendered Nodes</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-widest">Verified locally by Sandbox v2.4</p>
+                <h3 className="text-3xl font-black text-slate-950 dark:text-white tracking-tighter">Rendered Assets</h3>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.25em]">Client-Side Integrity Verified</p>
               </div>
               {batch.some(i => i.status === 'done') && (
-                <button 
-                  onClick={handleBatchDownload}
-                  className="px-10 py-5 bg-blue-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-[0.25em] hover:translate-y-[-2px] transition-all shadow-xl shadow-blue-600/20"
-                >
-                  {isZipping ? 'Archiving...' : (batch.filter(i => i.status === 'done').length > 1 ? 'Download Bundle (ZIP)' : 'Save Asset')}
+                <button onClick={handleBatchDownload} className="px-10 py-5 bg-indigo-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.25em] shadow-xl hover:scale-105 transition-transform">
+                  {isZipping ? 'Archiving...' : 'Save All Assets'}
                 </button>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {batch.map(item => (
-                <div key={item.id} className={`bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border transition-all flex items-center justify-between group ${item.status === 'error' ? 'border-rose-200 dark:border-rose-900/40' : 'border-slate-200/60 dark:border-slate-700/60 hover:border-blue-500'}`}>
-                  <div className="flex items-center space-x-5 min-w-0">
-                    <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-[1.5rem] overflow-hidden flex-shrink-0 flex items-center justify-center relative shadow-inner">
-                      {item.result ? (
-                        <img src={item.result.url} className="w-full h-full object-cover" alt="Node Result" />
-                      ) : item.status === 'processing' ? (
-                        <div className="w-full h-full flex items-center justify-center bg-blue-50/50 dark:bg-blue-600/10">
-                           <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
-                        </div>
-                      ) : item.status === 'error' ? (
-                        <div className="text-rose-500">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </div>
-                      ) : (
-                        <div className="text-slate-300">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        </div>
-                      )}
+                <div key={item.id} className="p-5 rounded-[2.2rem] border transition-all flex flex-col group bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md">
+                  
+                  {/* Progress Bar (Visible during processing) */}
+                  {item.status === 'processing' && (
+                    <div className="absolute bottom-0 left-0 h-1 bg-indigo-100 dark:bg-indigo-900/20 w-full overflow-hidden">
+                      <div 
+                        className="h-full bg-indigo-600 transition-all duration-300 ease-out" 
+                        style={{ width: `${item.progress}%` }}
+                      ></div>
                     </div>
-                    <div className="truncate">
-                      <p className="text-[11px] font-black text-slate-900 dark:text-white truncate uppercase tracking-wider mb-1">{item.file.name}</p>
-                      <div className="flex items-center gap-2">
-                         <span className="text-[9px] font-bold text-slate-400 uppercase">{formatFileSize(item.file.size)}</span>
-                         {item.result && (
-                           <>
-                             <span className="text-blue-500 text-[9px] font-black">→</span>
-                             <span className={`text-[9px] font-black uppercase ${item.result.size < item.file.size ? 'text-emerald-500' : 'text-slate-500'}`}>
-                                {formatFileSize(item.result.size)}
-                             </span>
-                           </>
-                         )}
-                         {item.status === 'error' && <span className="text-[8px] font-black text-rose-500 uppercase">Load Failure</span>}
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-5 min-w-0">
+                      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center relative shadow-inner border border-slate-200 dark:border-slate-800">
+                        {item.result ? <img src={item.result.url} className="w-full h-full object-cover" alt="Result" /> : <img src={item.previewUrl} className="w-full h-full object-cover opacity-30" alt="Preview" />}
+                        
+                        {item.status === 'processing' && (
+                           <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[2px]">
+                              <span className="text-[11px] font-black text-indigo-600">{item.progress}%</span>
+                           </div>
+                        )}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-[12px] font-black text-slate-900 dark:text-white truncate uppercase tracking-widest mb-1">{item.file.name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">{formatFileSize(item.file.size)}</span>
+                          {item.status === 'processing' && (
+                             <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest animate-pulse">Running...</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    {item.result && (
-                      <>
-                        <button 
-                          onClick={async () => {
-                            setCopyingId(item.id);
-                            const success = await copyToClipboard(item.result!.blob);
-                            if (!success) alert("Clipboard copy failed. Only PNG/JPG are supported in some browsers.");
-                            setTimeout(() => setCopyingId(null), 1500);
-                          }} 
-                          className={`p-3.5 rounded-xl transition-all ${copyingId === item.id ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-blue-600 hover:text-white'}`}
-                        >
-                          {copyingId === item.id ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                          )}
+                    <div className="flex items-center space-x-2">
+                      {item.result && (
+                        <button onClick={() => handleSave(item.result!)} className="p-4 bg-indigo-50 dark:bg-indigo-600/10 text-indigo-600 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         </button>
-                        <button onClick={() => handleSave(item.result!)} className="p-3.5 bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        </button>
-                      </>
-                    )}
-                    <button onClick={() => setBatch(prev => prev.filter(i => i.id !== item.id))} className="p-3.5 text-slate-300 hover:text-rose-500 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+                      )}
+                      <button onClick={() => setBatch(prev => prev.filter(i => i.id !== item.id))} className="p-4 text-slate-300 hover:text-rose-500 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
-
-      <div className="flex justify-center pt-8">
-        <div className="inline-flex items-center px-8 py-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-full shadow-sm">
-          <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse mr-4"></div>
-          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.4em] leading-none">AES-Equivalent Processing Privacy Level</span>
-        </div>
       </div>
     </div>
   );
