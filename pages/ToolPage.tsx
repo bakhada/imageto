@@ -1,9 +1,9 @@
-
 import React, { useEffect } from 'react';
 import { ToolMetadata } from '../types';
 import Converter from '../components/Converter';
 import SEOSection from '../components/SEOSection';
 import AdPlaceholder from '../components/AdPlaceholder';
+import ExternalAd from '../components/ExternalAd';
 import AffiliateSection from '../components/AffiliateSection';
 import { Link } from 'react-router-dom';
 import { TOOLS } from '../constants';
@@ -124,6 +124,11 @@ const ToolPage: React.FC<ToolPageProps> = ({ tool }) => {
             defaultFormat={tool.defaultFormat} 
             initialOptions={tool.initialOptions} 
           />
+        </section>
+
+        {/* HIGH CTR PLACEMENT: A-Ads Unit after Converter */}
+        <section className="px-6">
+           <ExternalAd label="SPONSORED INFRASTRUCTURE" className="w-full" />
         </section>
 
         {/* Feature Grid Section */}

@@ -1,8 +1,8 @@
-
 import React, { useEffect } from 'react';
 import Converter from '../components/Converter';
 import SEOSection from '../components/SEOSection';
 import AdPlaceholder from '../components/AdPlaceholder';
+import ExternalAd from '../components/ExternalAd';
 import { GENERAL_FAQ, TOOLS } from '../constants';
 import { Link } from 'react-router-dom';
 
@@ -79,9 +79,9 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* TOP PLACEMENT: Leaderboard after Hero */}
-      <div className="flex justify-center">
-        <AdPlaceholder type="leaderboard" className="mt-8" />
+      {/* TOP PLACEMENT: A-Ads High Conversion Slot */}
+      <div className="flex justify-center max-w-6xl mx-auto px-6">
+        <ExternalAd label="SPONSORED INFRASTRUCTURE" className="w-full" />
       </div>
 
       {/* Trust & SEO Stats Bar */}

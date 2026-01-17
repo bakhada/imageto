@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Host
+Host: https://imageto.org
+
+# Sitemap location
+Sitemap: https://imageto.org/sitemap.xml
