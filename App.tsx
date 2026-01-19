@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
@@ -62,6 +63,7 @@ const App: React.FC = () => {
 
         <Footer />
         <CookieConsent />
+        <Analytics />
       </div>
     </Router>
   );
